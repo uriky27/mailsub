@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/mailsub
 Environment=PATH=/opt/mailsub/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=/opt/mailsub/venv/bin/python /opt/mailsub/server.py https://example.com/file.pdf user@example.com "Encrypted File" "Please find the encrypted file attached."
+ExecStart=/opt/mailsub/venv/bin/python /opt/mailsub/server.py https://example.com/file.pdf user@example.com "Encrypted File" ""
 Restart=on-failure
 RestartSec=10
 
