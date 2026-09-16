@@ -1,6 +1,7 @@
 """Main application entry point for mailsub service."""
 import os
 import sys
+from datetime import datetime
 from typing import Optional
 
 from flask import Flask, jsonify, request
@@ -136,7 +137,7 @@ if __name__ == "__main__":
 
     file_url = sys.argv[1]
     recipient_email = sys.argv[2]
-    subject = sys.argv[3] if len(sys.argv) > 3 else "Encrypted File"
+    subject = sys.argv[3] if len(sys.argv) > 3 else datetime.now().strftime("%Y-%m-%d-%H-%M")
     body = sys.argv[4] if len(sys.argv) > 4 else "Please find the encrypted file attached."
 
     try:
