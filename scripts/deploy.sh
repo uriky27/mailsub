@@ -6,6 +6,7 @@ REMOTE_HOST="${REMOTE_HOST:-your-server-host}"
 REMOTE_PATH="${REMOTE_PATH:-/opt/mailsub}"
 REMOTE_BRANCH="${REMOTE_BRANCH:-main}"
 GIT_REPO_URL="${GIT_REPO_URL:-$(git config --get remote.origin.url 2>/dev/null || echo "https://github.com/your-user/mailsub.git") }"
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new)
 
 if [[ -z "${REMOTE_USER}" || -z "${REMOTE_HOST}" || "${REMOTE_HOST}" == "your-server-host" ]]; then
   echo "Configure REMOTE_USER and REMOTE_HOST before running deploy."
@@ -30,6 +31,11 @@ fi
 GIT_REPO_URL="${GIT_REPO_URL%%[[:space:]]*}"
 
 REMOTE_BOOTSTRAP='set -e;
+if ! sudo -n true >/dev/null 2>&1; then
+  echo "ERROR: user '${REMOTE_USER}' on '${REMOTE_HOST}' needs passwordless sudo for deploy.";
+  echo "Fix with: sudo usermod -aG sudo '${REMOTE_USER}' && echo \"${REMOTE_USER} ALL=(ALL) NOPASSWD:ALL\" | sudo tee /etc/sudoers.d/${REMOTE_USER}";
+  exit 1;
+fi;
 if ! command -v git >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
   if command -v dnf >/dev/null 2>&1; then
     sudo dnf install -y git python3 python3-pip || true;
@@ -59,22 +65,22 @@ sudo -u "'"${REMOTE_USER}"'" git config --global --add safe.directory "'"${REMOT
 echo "Deploying to ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}"
 
 echo "1/5. Bootstrap remote server if needed"
-ssh "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc '${REMOTE_BOOTSTRAP}'"
+ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc '${REMOTE_BOOTSTRAP}'"
 
 echo "2/5. Pulling latest code from ${REMOTE_BRANCH}"
-ssh "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc 'set -e; git config --global --add safe.directory \"${REMOTE_PATH}\"; chown -R \"${REMOTE_USER}\":\"${REMOTE_USER}\" \"${REMOTE_PATH}\"; cd \"${REMOTE_PATH}\"; git fetch --all --prune; git checkout \"${REMOTE_BRANCH}\"; git pull origin \"${REMOTE_BRANCH}\"'"
+ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc 'set -e; git config --global --add safe.directory \"${REMOTE_PATH}\"; chown -R \"${REMOTE_USER}\":\"${REMOTE_USER}\" \"${REMOTE_PATH}\"; cd \"${REMOTE_PATH}\"; git fetch --all --prune; git checkout \"${REMOTE_BRANCH}\"; git pull origin \"${REMOTE_BRANCH}\"'"
 
 echo "3/5. Creating venv and installing Python dependencies"
-ssh "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc 'set -e; cd \"${REMOTE_PATH}\"; if [ ! -d venv ]; then python3 -m venv venv; fi; . venv/bin/activate; pip install --upgrade pip; pip install -r requirements.txt'"
+ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc 'set -e; cd \"${REMOTE_PATH}\"; if [ ! -d venv ]; then python3 -m venv venv; fi; . venv/bin/activate; pip install --upgrade pip; pip install -r requirements.txt'"
 
 echo "3.5/5. Protecting secrets from deployment overwrite"
-ssh "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc 'set -e; if [ -f \"${REMOTE_PATH}/.env\" ]; then cp \"${REMOTE_PATH}/.env\" \"${REMOTE_PATH}/.env.backup.deploy\"; fi; if [ -f \"${REMOTE_PATH}/credentials.json\" ]; then cp \"${REMOTE_PATH}/credentials.json\" \"${REMOTE_PATH}/credentials.json.backup.deploy\"; fi; if [ -d \"${REMOTE_PATH}/.git\" ]; then git -C \"${REMOTE_PATH}\" checkout -- . 2>/dev/null || true; fi; if [ -f \"${REMOTE_PATH}/.env.backup.deploy\" ]; then mv \"${REMOTE_PATH}/.env.backup.deploy\" \"${REMOTE_PATH}/.env\"; fi; if [ -f \"${REMOTE_PATH}/credentials.json.backup.deploy\" ]; then mv \"${REMOTE_PATH}/credentials.json.backup.deploy\" \"${REMOTE_PATH}/credentials.json\"; fi; chown -R \"${REMOTE_USER}\":\"${REMOTE_USER}\" \"${REMOTE_PATH}\"'"
+ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc 'set -e; if [ -f \"${REMOTE_PATH}/.env\" ]; then cp \"${REMOTE_PATH}/.env\" \"${REMOTE_PATH}/.env.backup.deploy\"; fi; if [ -f \"${REMOTE_PATH}/credentials.json\" ]; then cp \"${REMOTE_PATH}/credentials.json\" \"${REMOTE_PATH}/credentials.json.backup.deploy\"; fi; if [ -d \"${REMOTE_PATH}/.git\" ]; then git -C \"${REMOTE_PATH}\" checkout -- . 2>/dev/null || true; fi; if [ -f \"${REMOTE_PATH}/.env.backup.deploy\" ]; then mv \"${REMOTE_PATH}/.env.backup.deploy\" \"${REMOTE_PATH}/.env\"; fi; if [ -f \"${REMOTE_PATH}/credentials.json.backup.deploy\" ]; then mv \"${REMOTE_PATH}/credentials.json.backup.deploy\" \"${REMOTE_PATH}/credentials.json\"; fi; chown -R \"${REMOTE_USER}\":\"${REMOTE_USER}\" \"${REMOTE_PATH}\"'"
 
 echo '4/5. Installing/updating systemd service'
-ssh "$REMOTE_USER@$REMOTE_HOST" "bash -lc 'set -e; sudo cp \"$REMOTE_PATH/systemd/mailsub.service\" /etc/systemd/system/mailsub.service; if [ -f \"$REMOTE_PATH/systemd/mailsub.timer\" ]; then sudo cp \"$REMOTE_PATH/systemd/mailsub.timer\" /etc/systemd/system/mailsub.timer; fi; sudo systemctl daemon-reload; sudo systemctl enable mailsub.timer 2>/dev/null || true'"
+ssh "${SSH_OPTS[@]}" "$REMOTE_USER@$REMOTE_HOST" "bash -lc 'set -e; sudo cp \"$REMOTE_PATH/systemd/mailsub.service\" /etc/systemd/system/mailsub.service; if [ -f \"$REMOTE_PATH/systemd/mailsub.timer\" ]; then sudo cp \"$REMOTE_PATH/systemd/mailsub.timer\" /etc/systemd/system/mailsub.timer; fi; sudo systemctl daemon-reload; sudo systemctl enable mailsub.timer 2>/dev/null || true'"
 
 echo "5/5. Restarting service"
-ssh "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc 'set -e; sudo systemctl daemon-reload; sudo systemctl restart mailsub 2>/dev/null || true; sudo systemctl status mailsub --no-pager -l --lines=20 2>/dev/null || true'"
+ssh "${SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "bash -lc 'set -e; sudo systemctl daemon-reload; sudo systemctl restart mailsub 2>/dev/null || true; sudo systemctl status mailsub --no-pager -l --lines=20 2>/dev/null || true'"
 
 echo "Deployment finished successfully."
 echo "Next steps on the server: configure .env and credentials.json in ${REMOTE_PATH}, then run:"
