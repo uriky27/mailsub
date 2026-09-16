@@ -1,9 +1,9 @@
 [Unit]
-Description=Run mailsub every hour
+Description=Run mailsub every 10 minutes
 
 [Timer]
 OnBootSec=5min
-OnUnitActiveSec=1h
+OnUnitActiveSec=10min
 Unit=mailsub.service
 
 [Install]
