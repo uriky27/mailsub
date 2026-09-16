@@ -1,0 +1,18 @@
+[Unit]
+Description=mailsub encrypted file sender
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/mailsub
+Environment=PATH=/opt/mailsub/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=MAILSUB_FILE_URL=https://example.com/file.pdf
+Environment=MAILSUB_RECIPIENT_EMAIL=user@example.com
+Environment=MAILSUB_SUBJECT=Encrypted File
+Environment=MAILSUB_BODY=Please find the encrypted file attached.
+ExecStart=/opt/mailsub/venv/bin/python /opt/mailsub/server.py "$MAILSUB_FILE_URL" "$MAILSUB_RECIPIENT_EMAIL" "$MAILSUB_SUBJECT" "$MAILSUB_BODY"
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

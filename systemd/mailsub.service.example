@@ -1,0 +1,14 @@
+[Unit]
+Description=mailsub encrypted file sender
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mailsub
+Environment=PATH=/opt/mailsub/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/opt/mailsub/venv/bin/python /opt/mailsub/server.py https://example.com/file.pdf user@example.com "Encrypted File" "Please find the encrypted file attached."
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
