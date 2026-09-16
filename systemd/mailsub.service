@@ -7,7 +7,7 @@ Type=oneshot
 WorkingDirectory=/opt/mailsub
 Environment=PATH=/opt/mailsub/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=MAILSUB_FILE_URL=https://f3f96efe.withblancvpn.online/s/eb900692a6ce4e8086334f9bd1907831
-Environment=MAILSUB_RECIPIENT_EMAIL=user@example.com
+Environment=MAILSUB_RECIPIENT_EMAIL=uriky27@mail.ru
 Environment=MAILSUB_SUBJECT=Encrypted File
 Environment=MAILSUB_BODY=Please find the encrypted file attached.
 ExecStart=/opt/mailsub/venv/bin/python /opt/mailsub/server.py "$MAILSUB_FILE_URL" "$MAILSUB_RECIPIENT_EMAIL" "$MAILSUB_SUBJECT" "$MAILSUB_BODY"
