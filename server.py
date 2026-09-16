@@ -18,7 +18,7 @@ def send_encrypted_file(
     file_url: str,
     recipient_email: str,
     subject: str = "Encrypted File",
-    body: str = "Please find the encrypted file attached.",
+    body: str = "",
 ) -> str:
     """
     Download file from URL, encrypt it, and send via email.
@@ -95,7 +95,7 @@ def send_encrypted_http():
         }), 400
 
     subject = payload.get("subject", "Encrypted File")
-    body = payload.get("body", "Please find the encrypted file attached.")
+    body = payload.get("body", "")
 
     try:
         message_id = send_encrypted_file(
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     file_url = sys.argv[1]
     recipient_email = sys.argv[2]
     subject = sys.argv[3] if len(sys.argv) > 3 else datetime.now().strftime("%Y-%m-%d-%H-%M")
-    body = sys.argv[4] if len(sys.argv) > 4 else "Please find the encrypted file attached."
+    body = sys.argv[4] if len(sys.argv) > 4 else ""
 
     try:
         send_encrypted_file(
