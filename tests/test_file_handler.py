@@ -1,13 +1,19 @@
 """Tests for mailsub core functionality."""
 import pytest
-from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from file_handler import FileHandler
 
 
 @pytest.fixture
 def encryption_key():
-    """Generate a test encryption key."""
-    return Fernet.generate_key().decode()
+    """Generate a test RSA private key in PEM format."""
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode()
 
 
 @pytest.fixture

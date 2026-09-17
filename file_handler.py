@@ -1,11 +1,12 @@
 """File download and encryption utilities."""
-import io
 import os
 from typing import BinaryIO
 from urllib.parse import urlparse
 
 import requests
-from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 
 class FileHandler:
@@ -13,12 +14,13 @@ class FileHandler:
     
     def __init__(self, encryption_key: str):
         """
-        Initialize FileHandler with encryption key.
+        Initialize FileHandler with an RSA private key in PEM format.
         
         Args:
-            encryption_key: Base64-encoded Fernet key (32 bytes)
+            encryption_key: PEM-encoded RSA private key
         """
-        self.cipher = Fernet(encryption_key.encode())
+        self.private_key = load_pem_private_key(encryption_key.encode(), password=None)
+        self.public_key = self.private_key.public_key()
     
     def download_file(self, url: str, timeout: int = 30) -> bytes:
         """
@@ -40,27 +42,54 @@ class FileHandler:
     
     def encrypt_file(self, file_data: bytes) -> bytes:
         """
-        Encrypt file data using Fernet (AES-128 symmetric encryption).
-        
-        Args:
-            file_data: Raw file bytes to encrypt
-            
-        Returns:
-            Encrypted file bytes
+        Encrypt file data using the RSA public key.
+
+        RSA can only encrypt messages smaller than the key size minus padding,
+        so the payload is split into chunks and encrypted piece by piece.
         """
-        return self.cipher.encrypt(file_data)
+        block_size = self.public_key.key_size // 8
+        hash_size = hashes.SHA256().digest_size
+        max_chunk_size = block_size - 2 * hash_size - 2
+        encrypted_chunks = []
+
+        for offset in range(0, len(file_data), max_chunk_size):
+            chunk = file_data[offset:offset + max_chunk_size]
+            encrypted_chunks.append(
+                self.public_key.encrypt(
+                    chunk,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None,
+                    ),
+                )
+            )
+
+        return b"".join(encrypted_chunks)
     
     def decrypt_file(self, encrypted_data: bytes) -> bytes:
         """
-        Decrypt Fernet-encrypted file data.
-        
-        Args:
-            encrypted_data: Encrypted file bytes
-            
-        Returns:
-            Decrypted file bytes
+        Decrypt RSA-encrypted file data using the matching private key.
         """
-        return self.cipher.decrypt(encrypted_data)
+        block_size = self.private_key.key_size // 8
+        decrypted_chunks = []
+
+        for offset in range(0, len(encrypted_data), block_size):
+            chunk = encrypted_data[offset:offset + block_size]
+            if not chunk:
+                continue
+            decrypted_chunks.append(
+                self.private_key.decrypt(
+                    chunk,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None,
+                    ),
+                )
+            )
+
+        return b"".join(decrypted_chunks)
     
     def get_filename_from_url(self, url: str) -> str:
         """Extract filename from URL path."""
