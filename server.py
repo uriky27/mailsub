@@ -39,12 +39,12 @@ def send_encrypted_file(
     if not Config.validate():
         raise ValueError(
             "Missing required environment variables: "
-            "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ENCRYPTION_KEY, "
+            "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, PUBLIC_KEY or ENCRYPTION_KEY, "
             "SENDER_EMAIL, RECIPIENT_EMAIL"
         )
 
     print(f"[1/4] Downloading file from {file_url}...")
-    file_handler = FileHandler(Config.ENCRYPTION_KEY)
+    file_handler = FileHandler(Config.PUBLIC_KEY or Config.ENCRYPTION_KEY)
     file_data = file_handler.download_file(file_url)
     print(f"✓ Downloaded {len(file_data)} bytes")
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         print("  - GOOGLE_CLIENT_ID")
         print("  - GOOGLE_CLIENT_SECRET")
         print("  - GOOGLE_REFRESH_TOKEN (optional)")
-        print("  - ENCRYPTION_KEY (base64-encoded Fernet key)")
+        print("  - PUBLIC_KEY or ENCRYPTION_KEY (PEM-encoded RSA public key)")
         print("  - SENDER_EMAIL")
         print("  - RECIPIENT_EMAIL")
         sys.exit(1)

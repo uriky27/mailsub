@@ -16,8 +16,10 @@ class Config:
     GOOGLE_CLIENT_SECRET: Optional[str] = os.environ.get("GOOGLE_CLIENT_SECRET")
     GOOGLE_REFRESH_TOKEN: Optional[str] = os.environ.get("GOOGLE_REFRESH_TOKEN")
     
-    # Encryption key (must be 32 bytes for AES-256)
-    ENCRYPTION_KEY: Optional[str] = os.environ.get("ENCRYPTION_KEY")
+    # Public encryption key used by the server to encrypt outbound files.
+    PUBLIC_KEY: Optional[str] = os.environ.get("PUBLIC_KEY")
+    # Backward compatibility for older deployments using ENCRYPTION_KEY.
+    ENCRYPTION_KEY: Optional[str] = os.environ.get("ENCRYPTION_KEY") or PUBLIC_KEY
     
     # Email settings
     SENDER_EMAIL: Optional[str] = os.environ.get("SENDER_EMAIL")
@@ -26,10 +28,11 @@ class Config:
     @staticmethod
     def validate() -> bool:
         """Validate required configuration is set."""
+        encryption_key = Config.PUBLIC_KEY or Config.ENCRYPTION_KEY
         required = [
             Config.GOOGLE_CLIENT_ID,
             Config.GOOGLE_CLIENT_SECRET,
-            Config.ENCRYPTION_KEY,
+            encryption_key,
             Config.SENDER_EMAIL,
             Config.RECIPIENT_EMAIL,
         ]

@@ -6,7 +6,10 @@ from urllib.parse import urlparse
 import requests
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from cryptography.hazmat.primitives.serialization import (
+    load_pem_private_key,
+    load_pem_public_key,
+)
 
 
 class FileHandler:
@@ -14,13 +17,20 @@ class FileHandler:
     
     def __init__(self, encryption_key: str):
         """
-        Initialize FileHandler with an RSA private key in PEM format.
-        
-        Args:
-            encryption_key: PEM-encoded RSA private key
+        Initialize FileHandler with an RSA public key in PEM format.
+
+        The server only needs the public key for encryption. If a private key is
+        provided instead, it is kept available for optional decryption in tests or
+        local recovery flows.
         """
-        self.private_key = load_pem_private_key(encryption_key.encode(), password=None)
-        self.public_key = self.private_key.public_key()
+        self.private_key = None
+        self.public_key = None
+
+        try:
+            self.private_key = load_pem_private_key(encryption_key.encode(), password=None)
+            self.public_key = self.private_key.public_key()
+        except ValueError:
+            self.public_key = load_pem_public_key(encryption_key.encode())
     
     def download_file(self, url: str, timeout: int = 30) -> bytes:
         """
