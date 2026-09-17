@@ -1,6 +1,6 @@
 """File download and encryption utilities."""
 import os
-from typing import BinaryIO
+from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
@@ -80,7 +80,19 @@ class FileHandler:
     def decrypt_file(self, encrypted_data: bytes) -> bytes:
         """
         Decrypt RSA-encrypted file data using the matching private key.
+
+        Args:
+            encrypted_data: RSA-encrypted file bytes.
+
+        Returns:
+            The decrypted file bytes.
+
+        Raises:
+            ValueError: If the handler was initialized without a private key.
         """
+        if self.private_key is None:
+            raise ValueError("A private key is required for decryption.")
+
         block_size = self.private_key.key_size // 8
         decrypted_chunks = []
 
@@ -109,3 +121,27 @@ class FileHandler:
     def get_encrypted_filename(self, original_filename: str) -> str:
         """Generate encrypted filename."""
         return f"{original_filename}.encrypted"
+
+    def get_decrypted_filename(self, encrypted_filename: str) -> str:
+        """Generate decrypted filename from an encrypted attachment name."""
+        if encrypted_filename.endswith(".encrypted"):
+            return encrypted_filename[:-10]
+        return encrypted_filename
+
+    def save_file(self, file_data: bytes, output_dir: str, filename: str) -> Path:
+        """
+        Save file bytes to the target directory.
+
+        Args:
+            file_data: File contents to persist.
+            output_dir: Destination directory path.
+            filename: Output filename.
+
+        Returns:
+            Full path to the saved file.
+        """
+        target_dir = Path(output_dir)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        output_path = target_dir / filename
+        output_path.write_bytes(file_data)
+        return output_path

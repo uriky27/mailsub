@@ -20,10 +20,17 @@ class Config:
     PUBLIC_KEY: Optional[str] = os.environ.get("PUBLIC_KEY")
     # Backward compatibility for older deployments using ENCRYPTION_KEY.
     ENCRYPTION_KEY: Optional[str] = os.environ.get("ENCRYPTION_KEY") or PUBLIC_KEY
+    PRIVATE_KEY: Optional[str] = os.environ.get("PRIVATE_KEY")
     
     # Email settings
     SENDER_EMAIL: Optional[str] = os.environ.get("SENDER_EMAIL")
     RECIPIENT_EMAIL: Optional[str] = os.environ.get("RECIPIENT_EMAIL")
+    MAILRU_EMAIL: Optional[str] = os.environ.get("MAILRU_EMAIL")
+    MAILRU_PASSWORD: Optional[str] = os.environ.get("MAILRU_PASSWORD")
+    MAILRU_IMAP_HOST: str = os.environ.get("MAILRU_IMAP_HOST", "imap.mail.ru")
+    MAILRU_IMAP_PORT: int = int(os.environ.get("MAILRU_IMAP_PORT", "993"))
+    MAILRU_MAILBOX: str = os.environ.get("MAILRU_MAILBOX", "INBOX")
+    ROUTER_OUTPUT_DIR: str = os.environ.get("ROUTER_OUTPUT_DIR", "router_files")
     
     @staticmethod
     def validate() -> bool:
@@ -35,5 +42,15 @@ class Config:
             encryption_key,
             Config.SENDER_EMAIL,
             Config.RECIPIENT_EMAIL,
+        ]
+        return all(required)
+
+    @staticmethod
+    def validate_receive() -> bool:
+        """Validate required configuration for router-side decryption."""
+        required = [
+            Config.MAILRU_EMAIL,
+            Config.MAILRU_PASSWORD,
+            Config.PRIVATE_KEY,
         ]
         return all(required)

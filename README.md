@@ -1,10 +1,11 @@
 # mailsub - Encrypted File Transfer Service
 
-Download a file from a URL, encrypt it, and send it via email using Google Gmail API.
+Download a file from a URL, encrypt it, and send it via email using Google Gmail API. The repository also includes a router-side flow that reads the encrypted attachment from Mail.ru, decrypts it, and saves it to the local filesystem.
 
 ## Features
-- 🔒 **Fernet AES-128 Encryption** - Symmetric encryption for uploaded files
+- 🔒 **RSA Encryption/Decryption** - Encrypt on the sender, decrypt on the router with the private key
 - 📧 **Gmail Integration** - Send encrypted files via Google Gmail API
+- 📥 **Mail.ru IMAP Retrieval** - Read encrypted attachments from a Mail.ru inbox
 - 🌐 **URL Download** - Download files from any web URL
 - 🔑 **OAuth 2.0 Authentication** - Secure Google API access
 
@@ -27,9 +28,23 @@ pip install -r requirements.txt
    ```
    This will open a browser for authentication and save the refresh token.
 
-### 3. Generate Encryption Key
+### 3. Generate RSA Key Pair
 ```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+python - <<'PY'
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+
+private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+print(private_key.private_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PrivateFormat.TraditionalOpenSSL,
+    encryption_algorithm=serialization.NoEncryption(),
+).decode())
+print(private_key.public_key().public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+).decode())
+PY
 ```
 
 ### 4. Configure Environment
@@ -60,6 +75,11 @@ send_encrypted_file(
 )
 ```
 
+**Router-side receive/decrypt usage:**
+```bash
+python server.py --receive /data/mailsub "Encrypted File"
+```
+
 ## Architecture
 
 - **config.py** - Configuration and environment management
@@ -82,15 +102,26 @@ send_encrypted_file(
 | `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID from Google Cloud Console |
 | `GOOGLE_CLIENT_SECRET` | OAuth 2.0 Client Secret (keep secret!) |
 | `GOOGLE_REFRESH_TOKEN` | Refresh token (auto-generated after first auth) |
-| `ENCRYPTION_KEY` | Base64-encoded Fernet key (32 bytes) |
+| `PUBLIC_KEY` | PEM-encoded RSA public key used to encrypt outgoing files |
+| `ENCRYPTION_KEY` | Backward-compatible alias for `PUBLIC_KEY` |
+| `PRIVATE_KEY` | PEM-encoded RSA private key used by the router to decrypt files |
 | `SENDER_EMAIL` | Gmail address to send from |
 | `RECIPIENT_EMAIL` | Default recipient email |
+| `MAILRU_EMAIL` | Mail.ru mailbox address used by the router |
+| `MAILRU_PASSWORD` | Mail.ru mailbox password or app password |
+| `MAILRU_IMAP_HOST` | IMAP host for Mail.ru (`imap.mail.ru` by default) |
+| `MAILRU_IMAP_PORT` | IMAP port for Mail.ru (`993` by default) |
+| `MAILRU_MAILBOX` | IMAP mailbox/folder to scan (`INBOX` by default) |
+| `ROUTER_OUTPUT_DIR` | Directory where decrypted files are stored on the router |
 
 ## Testing
 
 ```bash
 # Download a small test file and encrypt it
 python server.py https://httpbin.org/image/png test@example.com "Test Image" "Encrypted image file"
+
+# Read the latest encrypted attachment from Mail.ru and save the decrypted file
+python server.py --receive /tmp/mailsub-router
 ```
 
 ## Remote Deployment Workflow
