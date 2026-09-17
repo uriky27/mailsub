@@ -2,6 +2,7 @@
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 from flask import Flask, jsonify, request
@@ -12,6 +13,16 @@ from file_handler import FileHandler
 
 
 app = Flask(__name__)
+
+
+def save_original_file(file_data: bytes, filename: str) -> Path:
+    """Save a downloaded original file for later verification."""
+    archive_dir = Path(os.getenv("MAILSUB_ARCHIVE_DIR", "sent_files"))
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    archive_path = archive_dir / f"{timestamp}-{filename}"
+    archive_path.write_bytes(file_data)
+    return archive_path
 
 
 def send_encrypted_file(
@@ -47,10 +58,12 @@ def send_encrypted_file(
     file_handler = FileHandler(Config.PUBLIC_KEY or Config.ENCRYPTION_KEY)
     file_data = file_handler.download_file(file_url)
     print(f"✓ Downloaded {len(file_data)} bytes")
+    original_filename = file_handler.get_filename_from_url(file_url)
+    archive_path = save_original_file(file_data, original_filename)
+    print(f"✓ Original saved → {archive_path}")
 
     print("[2/4] Encrypting file...")
     encrypted_data = file_handler.encrypt_file(file_data)
-    original_filename = file_handler.get_filename_from_url(file_url)
     encrypted_filename = file_handler.get_encrypted_filename(original_filename)
     print(f"✓ Encrypted ({len(encrypted_data)} bytes) → {encrypted_filename}")
 

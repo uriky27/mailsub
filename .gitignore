@@ -51,3 +51,6 @@ htmlcov/
 
 # Encrypted files (if storing locally)
 *.encrypted
+
+# Unencrypted originals retained for post-send verification
+sent_files/
